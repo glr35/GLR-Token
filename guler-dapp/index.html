@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Güler's First DApp 🚀</title>
+</head>
+<body style="font-family:sans-serif; text-align:center; margin-top:50px;">
+  <h1>👋 Hoş geldin Güler!</h1>
+  <p>Bu senin ilk Web3 uygulaman 💪</p>
+  <button id="connectButton">🔗 Cüzdanı Bağla</button>
+  <button id="checkBalance">💰 Bakiyemi Göster</button>
+
+  <p id="walletAddress"></p>
+  <p id="balance"></p>
+
+  <script>
+    const connectButton = document.getElementById("connectButton");
+    const balanceButton = document.getElementById("checkBalance");
+    const walletAddress = document.getElementById("walletAddress");
+    const balanceDisplay = document.getElementById("balance");
+
+    let account;
+
+    connectButton.onclick = async () => {
+      if (window.ethereum) {
+        const accounts = await window.ethereum.request({ method: "eth_requestAccounts" });
+        account = accounts[0];
+        walletAddress.innerText = "Bağlandı: " + account;
+      } else {
+        alert("MetaMask yüklü değil! Lütfen yükle.");
+      }
+    };
+
+    balanceButton.onclick = async () => {
+      if (!account) return alert("Önce cüzdanı bağla!");
+      const balance = await window.ethereum.request({
+        method: "eth_getBalance",
+        params: [account, "latest"],
+      });
+      balanceDisplay.innerText =
+        "Bakiyen: " + parseInt(balance, 16) / 1e18 + " SepoliaETH";
+    };
+  </script>
+</body>
+</html>

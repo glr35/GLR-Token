@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <title>GLR Token DApp</title>
+  <style>
+    body {
+      background: #0d1117;
+      color: #fff;
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 20px;
+    }
+    .card {
+      background: #161b22;
+      padding: 20px;
+      border-radius: 12px;
+      margin-bottom: 20px;
+      border: 1px solid #30363d;
+    }
+    button {
+      margin-top: 15px;
+      padding: 12px 20px;
+      border-radius: 8px;
+      border: none;
+      cursor: pointer;
+      background: #238636;
+      color: white;
+      font-size: 15px;
+    }
+    button:hover {
+      background: #2ea043;
+    }
+    input {
+      width: 100%;
+      padding: 12px;
+      margin-top: 10px;
+      background: #0d1117;
+      border: 1px solid #30363d;
+      color: white;
+      border-radius: 8px;
+    }
+  </style>
+</head>
+
+<body>
+
+  <h1>GLR Token DApp</h1>
+
+  <!-- TOKEN INFO -->
+  <div class="card">
+    <h2>GLR Token Bilgileri</h2>
+    <p><strong>Token Adı:</strong> GLR Token</p>
+    <p><strong>Sembol:</strong> GLR</p>
+    <p><strong>Toplam Arz:</strong> <span id="totalSupply">---</span> GLR</p>
+  </div>
+
+  <!-- WALLET -->
+  <div class="card">
+    <h2>Cüzdan</h2>
+    <button id="connectBtn">Cüzdanı Bağla</button>
+    <p id="walletAddress"></p>
+  </div>
+
+  <!-- BALANCE -->
+  <div class="card">
+    <h2>GLR Token Bakiyesi</h2>
+    <button id="balanceBtn">Bakiyemi Göster</button>
+    <p id="balance"></p>
+  </div>
+
+  <!-- TRANSFER -->
+  <div class="card">
+    <h2>Token Transferi</h2>
+    <input type="text" id="toAddress" placeholder="Adres (0x...)">
+    <input type="number" id="amount" placeholder="Miktar">
+    <button id="transferBtn">Gönder</button>
+    <p id="txResult"></p>
+  </div>
+
+  <!-- Ethers -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.6.4/ethers.umd.min.js"></script>
+
+  <script>
+    // ✅ Senin kontrat adresin
+    const CONTRACT_ADDRESS = "0x303721A47d9E47A6b6491Db50128A75C63673ceC";
+
+    // ✅ Sade ama DOĞRU ABI
+    const ABI = [
+      "function totalSupply() view returns (uint256)",
+      "function decimals() view returns (uint8)",
+      "function balanceOf(address) view returns (uint256)",
+      "function transfer(address to, uint256 value) returns (bool)"
+    ];
+
+    let provider;
+    let signer;
+    let contract;
+
+    async function getDecimals() {
+      const d = await contract.decimals();  // BigInt geliyor
+      return Number(d);                     // Number'a çeviriyoruz
+    }
+
+    // CÜZDAN BAĞLAMA
+    document.getElementById("connectBtn").onclick = async () => {
+      if (!window.ethereum) {
+        alert("Metamask yok!");
+        return;
+      }
+
+      provider = new ethers.BrowserProvider(window.ethereum);
+      await provider.send("eth_requestAccounts", []);
+      signer = await provider.getSigner();
+      contract = new ethers.Contract(CONTRACT_ADDRESS, ABI, signer);
+
+      const addr = await signer.getAddress();
+      document.getElementById("walletAddress").innerText = "Cüzdan: " + addr;
+
+      loadSupply();
+    };
+
+    // TOPLAM ARZ
+    async function loadSupply() {
+      if (!contract) return;
+
+      const [totalRaw, decNum] = await Promise.all([
+        contract.totalSupply(),  // BigInt
+        getDecimals()            // Number
+      ]);
+
+      const human = Number(totalRaw) / (10 ** decNum);
+      document.getElementById("totalSupply").innerText = human.toString();
+    }
+
+    // BAKİYE
+    document.getElementById("balanceBtn").onclick = async () => {
+      if (!contract) {
+        alert("Önce cüzdanı bağla.");
+        return;
+      }
+
+      const decNum = await getDecimals();
+      const addr = await signer.getAddress();
+
+      const balRaw = await contract.balanceOf(addr); // BigInt
+      const human = Number(balRaw) / (10 ** decNum);
+
+      document.getElementById("balance").innerText = human.toString() + " GLR";
+    };
+
+    // TRANSFER
+    document.getElementById("transferBtn").onclick = async () => {
+      if (!contract) {
+        alert("Önce cüzdanı bağla.");
+        return;
+      }
+
+      const to = document.getElementById("toAddress").value.trim();
+      const amountStr = document.getElementById("amount").value.trim();
+
+      if (!to || !amountStr) {
+        alert("Adres ve miktar gir.");
+        return;
+      }
+
+      const decNum = await getDecimals();
+
+      // BigInt ile düzgün çarpım
+      const amount = BigInt(amountStr);
+      const factor = BigInt(10) ** BigInt(decNum);
+      const rawAmount = amount * factor;
+
+      try {
+        const tx = await contract.transfer(to, rawAmount);
+        document.getElementById("txResult").innerText =
+          "İşlem gönderildi: " + tx.hash;
+      } catch (err) {
+        document.getElementById("txResult").innerText =
+          "Hata: " + err.message;
+      }
+    };
+  </script>
+
+</body>
+</html>
